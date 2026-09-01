@@ -1,0 +1,12 @@
+{
+  "n_holdout": 1600,
+  "positive_labels": 75,
+  "positive_rate": 0.046875,
+  "roc_auc": 0.713320218579235,
+  "pr_auc": 0.12487777683501726,
+  "selected_model": "Logistic regression",
+  "selection_rule": "Highest mean PR-AUC on stratified development folds; Lift@10% breaks ties.",
+  "includes_claimant_age": false,
+  "age_governance_rule": "Exclude age when development mean PR-AUC falls by no more than 0.01 and Lift@10% by no more than 0.10.",
+  "score_language": "Uncalibrated model score used for relative review priority."
+}

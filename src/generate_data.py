@@ -14,11 +14,21 @@ not a good model.
 """
 from __future__ import annotations
 
+import argparse
+import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-RANDOM_SEED = 42
-N_CLAIMS = 8000
+from .config import DEFAULT_CONFIG
+
+LOGGER = logging.getLogger(__name__)
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_OUTPUT = ROOT / "data" / "synthetic_claims.csv"
+
+RANDOM_SEED = DEFAULT_CONFIG.random_state
+N_CLAIMS = DEFAULT_CONFIG.n_claims
 BASE_FRAUD_RATE = 0.045  # ~4.5%, a plausible order-of-magnitude for short-term insurance fraud rates
 
 PROVINCES = [
@@ -31,6 +41,10 @@ AG_CLAIM_TYPES = ["Hail Damage", "Livestock Loss", "Crop Failure", "Equipment Da
 
 
 def generate_claims(n: int = N_CLAIMS, seed: int = RANDOM_SEED) -> pd.DataFrame:
+    """Generate a deterministic, wholly synthetic claims dataset."""
+
+    if n < 1:
+        raise ValueError("n must be positive")
     rng = np.random.default_rng(seed)
 
     policy_type = rng.choice(["Motor", "Agricultural"], size=n, p=[0.72, 0.28])
@@ -93,9 +107,26 @@ def generate_claims(n: int = N_CLAIMS, seed: int = RANDOM_SEED) -> pd.DataFrame:
     return df
 
 
+def write_claims(path: Path = DEFAULT_OUTPUT, *, n: int = N_CLAIMS, seed: int = RANDOM_SEED) -> pd.DataFrame:
+    """Generate claims and write them to a CSV outside version control."""
+
+    claims = generate_claims(n=n, seed=seed)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    claims.to_csv(path, index=False)
+    return claims
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate the synthetic claims dataset.")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--n-claims", type=int, default=N_CLAIMS)
+    parser.add_argument("--seed", type=int, default=RANDOM_SEED)
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    claims = write_claims(args.output, n=args.n_claims, seed=args.seed)
+    LOGGER.info("Generated %s synthetic claims at %s", len(claims), args.output)
+    LOGGER.info("Synthetic positive-label rate: %.2f%%", claims["fraud_flag"].mean() * 100)
+
+
 if __name__ == "__main__":
-    claims = generate_claims()
-    out_path = "data/synthetic_claims.csv"
-    claims.to_csv(out_path, index=False)
-    print(f"Generated {len(claims)} synthetic claims -> {out_path}")
-    print(f"Fraud rate: {claims['fraud_flag'].mean():.2%}")
+    main()

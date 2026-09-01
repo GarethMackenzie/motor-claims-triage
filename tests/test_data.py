@@ -1,48 +1,46 @@
-"""
-Sanity checks for the synthetic data generator. Run with:
-    pytest tests/
-"""
-import sys
-from pathlib import Path
+"""Quality controls for the wholly synthetic source data."""
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from __future__ import annotations
 
-from generate_data import generate_claims  # noqa: E402
+import pandas as pd
+
+from src.generate_data import AG_CLAIM_TYPES, MOTOR_CLAIM_TYPES, PROVINCES, generate_claims
 
 
-def test_shape_and_columns():
-    df = generate_claims(n=500, seed=1)
-    assert len(df) == 500
-    expected_cols = {
+def test_generation_is_deterministic() -> None:
+    first = generate_claims(n=500, seed=7)
+    second = generate_claims(n=500, seed=7)
+    pd.testing.assert_frame_equal(first, second)
+
+
+def test_schema_ids_and_nulls() -> None:
+    data = generate_claims(n=500, seed=1)
+    assert list(data.columns) == [
         "claim_id", "policy_type", "region", "claim_type", "claim_amount",
         "policy_tenure_months", "claimant_age", "prior_claims_count",
         "days_to_report", "police_report_filed", "fraud_flag",
-    }
-    assert expected_cols.issubset(set(df.columns))
+    ]
+    assert data["claim_id"].is_unique
+    assert data.isna().sum().sum() == 0
 
 
-def test_no_nulls():
-    df = generate_claims(n=500, seed=1)
-    assert df.isnull().sum().sum() == 0
+def test_numeric_ranges() -> None:
+    data = generate_claims(n=1_000, seed=2)
+    assert (data["claim_amount"] > 0).all()
+    assert data["claimant_age"].between(18, 85).all()
+    assert data["policy_tenure_months"].between(1, 240).all()
+    assert (data["prior_claims_count"] >= 0).all()
+    assert data["days_to_report"].between(0, 60).all()
 
 
-def test_fraud_rate_in_plausible_range():
-    df = generate_claims(n=5000, seed=1)
-    rate = df["fraud_flag"].mean()
-    assert 0.01 < rate < 0.12, f"fraud rate {rate:.2%} outside plausible range"
+def test_categories_are_governed() -> None:
+    data = generate_claims(n=2_000, seed=3)
+    assert set(data["policy_type"]) <= {"Motor", "Agricultural"}
+    assert set(data["region"]) <= set(PROVINCES)
+    assert set(data["claim_type"]) <= set(MOTOR_CLAIM_TYPES + AG_CLAIM_TYPES)
+    assert set(data["fraud_flag"]) <= {0, 1}
 
 
-def test_claim_amounts_positive():
-    df = generate_claims(n=500, seed=1)
-    assert (df["claim_amount"] > 0).all()
-
-
-def test_deterministic_with_seed():
-    df1 = generate_claims(n=200, seed=7)
-    df2 = generate_claims(n=200, seed=7)
-    assert df1.equals(df2)
-
-
-def test_policy_types_valid():
-    df = generate_claims(n=500, seed=1)
-    assert set(df["policy_type"].unique()).issubset({"Motor", "Agricultural"})
+def test_positive_label_prevalence_is_within_expected_range() -> None:
+    rate = generate_claims(n=8_000, seed=42)["fraud_flag"].mean()
+    assert 0.03 <= rate <= 0.07

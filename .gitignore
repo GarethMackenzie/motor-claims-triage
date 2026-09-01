@@ -3,8 +3,11 @@ __pycache__/
 .ipynb_checkpoints/
 .pytest_cache/
 data/*.csv
-results/*.json
+results/ci/
 .venv/
 venv/
 *.egg-info/
 .DS_Store
+.coverage
+htmlcov/
+.matplotlib/

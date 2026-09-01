@@ -1,0 +1,16 @@
+{
+  "synthetic_data_only": true,
+  "random_state": 42,
+  "n_claims": 8000,
+  "development_claims": 6400,
+  "holdout_claims": 1600,
+  "holdout_fraction": 0.2,
+  "cv_folds": 5,
+  "selected_model": "Logistic regression",
+  "selection_metric": "development cross-validated PR-AUC",
+  "final_includes_claimant_age": false,
+  "age_decision_used_holdout": false,
+  "smote_used": false,
+  "holdout_used_for_model_selection": false,
+  "fast_mode": false
+}
